@@ -1,0 +1,19 @@
+[project]
+name = "voice-notes-bot"
+version = "0.1.0"
+description = "Telegram bot for converting voice note files to voice messages"
+authors = [
+    {name = "Peter Minin", email = "peterminin@gmail.com"},
+]
+dependencies = [
+    "python-telegram-bot~=21.3",
+]
+requires-python = "~=3.11"
+license = {text = "MIT"}
+
+
+[tool.pdm]
+distribution = false
+
+[tool.pdm.scripts]
+run_bot = "./src/voice_notes_bot/bot.py ./local/secrets/bot.json ./local/config.json ./local/state/"
