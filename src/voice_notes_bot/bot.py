@@ -76,7 +76,7 @@ def convert_to_ogg_opus(input_audio_file: Path, output_file: Path):
     stream = ffmpeg.output(
         stream, str(output_file), acodec="libopus", audio_bitrate=128 * 1024
     )
-    ffmpeg.run(stream)
+    ffmpeg.run(stream, quiet=True)
     assert output_file.is_file()
 
 
