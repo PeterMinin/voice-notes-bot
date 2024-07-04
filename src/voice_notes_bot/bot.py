@@ -7,7 +7,10 @@ from pathlib import Path
 from typing import Iterator
 
 import ffmpeg
-from telegram import Bot
+from telegram import Bot, Update
+
+from .config import Config
+from .state import State
 
 
 def get_args():
@@ -30,28 +33,30 @@ def get_api_token(bot_json: Path) -> str:
     return api_token
 
 
-def get_config(config_json: Path) -> dict:
-    with open(config_json, encoding="utf-8") as f:
-        data = json.load(f)
-    return data
+async def handle_update(update: Update, bot: Bot, config: Config) -> bool:
+    if update.message.chat.id != config.chat_id:
+        print("New chat:", update)
+        return True
+    if update.message.text == "/start":
+        await bot.send_message(text="Hi!", chat_id=config.chat_id)
+        return True
+    print("Unexpected update:", update)
+    return False
 
 
-def ensure_dir(dir_path: Path) -> Path:
-    dir_path.mkdir(exist_ok=True)
-    return dir_path
-
-
-async def process_updates(bot: Bot, target_chat_id: int | None):
-    updates = await bot.get_updates()
+async def process_updates(bot: Bot, config: Config, state: State):
+    last_update_id = state.last_update_id
+    updates = await bot.get_updates(offset=last_update_id + 1)
     if not updates:
         print("No updates")
         return
-    for update in updates:
-        if update.message.chat.id != target_chat_id:
-            print("New chat:", update)
-            continue
-        if update.message.text == "/start":
-            await bot.send_message(text="Hi!", chat_id=target_chat_id)
+    for i, update in enumerate(updates):
+        if await handle_update(update, bot, config):
+            state.last_update_id = update.update_id
+        else:
+            print(f"Updates left unprocessed: {len(updates) - i}")
+            return
+    print("All updates processed")
 
 
 def is_ogg_opus(audio_file: Path) -> bool:
@@ -99,16 +104,9 @@ async def send_voice_note(bot: Bot, chat_id: int, audio_file: Path):
 
 
 async def process_voice_notes(
-    bot: Bot, chat_id: int, recordings_dir: Path, state_dir: Path
+    bot: Bot, chat_id: int, recordings_dir: Path, state: State
 ):
-    old_files_list = state_dir / "old_files.json"
-    if old_files_list.is_file():
-        with open(old_files_list) as f:
-            old_files = json.load(f)
-            if not isinstance(old_files, list):
-                raise ValueError(f"Unexpected format in {old_files_list}")
-    else:
-        old_files = []
+    old_files = state.old_files
 
     audio_files = sorted(recordings_dir.glob("*.m4a"), key=lambda file: file.name)
     sent_files = []
@@ -119,35 +117,28 @@ async def process_voice_notes(
         sent_files.append(file.name)
 
     if sent_files:
-        with open(old_files_list, "w") as f:
-            json.dump(old_files + sent_files, f)
+        state.old_files = old_files + sent_files
         print(f"Notes sent: {len(sent_files)}")
     else:
         print("No new notes")
 
 
-async def run_bot(token: str, config: dict, state_dir: Path):
+async def run_bot(token: str, config: Config, state: State):
     bot = Bot(token)
     async with bot:
-        chat_id = config.get("chat_id")
-        if chat_id is None:
-            await process_updates(bot, None)
+        await process_updates(bot, config, state)
+        if config.chat_id is None:
             return
-
-        recordings_dir = Path(config["recordings_dir"])
-        if not recordings_dir.is_dir():
-            raise ValueError(f"recordings_dir must be a dir ({recordings_dir})")
-        assert state_dir.is_dir()
-
-        await process_voice_notes(bot, chat_id, recordings_dir, state_dir)
+        await process_voice_notes(bot, config.chat_id, config.recordings_dir, state)
 
 
 def main():
     args = get_args()
     token = get_api_token(args.bot_json)
-    config = get_config(args.config_json)
-    state_dir = ensure_dir(Path(args.state_dir))
-    asyncio.run(run_bot(token, config, state_dir))
+    config = Config.load(args.config_json)
+    state = State.load(args.state_dir)
+    asyncio.run(run_bot(token, config, state))
+    state.save()
 
 
 if __name__ == "__main__":

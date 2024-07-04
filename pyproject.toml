@@ -17,4 +17,4 @@ license = {text = "MIT"}
 distribution = false
 
 [tool.pdm.scripts]
-run_bot = "./src/voice_notes_bot/bot.py ./local/secrets/bot.json ./local/config.json ./local/state/"
+run_bot = "python -m src.voice_notes_bot.bot ./local/secrets/bot.json ./local/config.json ./local/state/"
