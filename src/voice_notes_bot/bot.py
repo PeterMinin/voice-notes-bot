@@ -108,16 +108,16 @@ async def process_voice_notes(
     bot: tg.Bot, chat_id: int, recordings_dir: Path, state: State
 ):
     audio_files = sorted(recordings_dir.glob("*.m4a"), key=lambda file: file.name)
-    filenames = [file.name for file in audio_files]
+    old_files = set(state.message_id_to_filename.values())
+    old_files.remove(None)
     num_sent = 0
     for file in audio_files:
-        if file.name in state.old_files:
+        if file.name in old_files:
             continue
         message = await send_voice_note(bot, chat_id, file)
         state.message_id_to_filename[message.id] = file.name
         num_sent += 1
 
-    state.old_files = filenames
     if num_sent > 0:
         print(f"Notes sent: {num_sent}")
     else:

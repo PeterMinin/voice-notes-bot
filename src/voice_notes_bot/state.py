@@ -9,7 +9,6 @@ _state_filename = "state.json"
 class State:
     _state_dir: Path
     last_update_id: int
-    old_files: list[str]
     message_id_to_filename: dict[str, str]
 
     @classmethod
@@ -25,14 +24,12 @@ class State:
         return State(
             _state_dir=state_dir,
             last_update_id=data.get("last_update_id", 0),
-            old_files=data.get("old_files", []),
             message_id_to_filename=data.get("message_id_to_filename", {})
         )
 
     def save(self) -> None:
         data = {
             "last_update_id": self.last_update_id,
-            "old_files": self.old_files,
             "message_id_to_filename": self.message_id_to_filename,
         }
         with open(self._state_dir / _state_filename, "w", encoding="utf-8") as f:
