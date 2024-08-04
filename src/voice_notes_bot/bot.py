@@ -98,30 +98,42 @@ async def process_updates(bot: tg.Bot, config: Config, state: State):
     print("All updates processed")
 
 
-async def send_voice_note(bot: tg.Bot, chat_id: int, audio_file: Path) -> tg.Message:
+async def send_voice_note(bot: tg.Bot, chat_id: int, audio_file: Path, semaphore) -> tg.Message:
     assert audio_file.is_file()
     with get_as_ogg_opus(audio_file) as ogg_file:
-        return await bot.send_voice(chat_id, ogg_file, caption=audio_file.stem)
+        await semaphore.acquire()
+        try:
+            return await bot.send_voice(chat_id, ogg_file, caption=audio_file.stem)
+        finally:
+            semaphore.release()
 
 
 async def process_voice_notes(
     bot: tg.Bot, chat_id: int, recordings_dir: Path, state: State
 ):
-    audio_files = sorted(recordings_dir.glob("*.m4a"), key=lambda file: file.name)
     old_files = set(state.message_id_to_filename.values())
     old_files.remove(None)
-    num_sent = 0
-    for file in audio_files:
-        if file.name in old_files:
-            continue
-        message = await send_voice_note(bot, chat_id, file)
-        state.message_id_to_filename[message.id] = file.name
-        num_sent += 1
-
-    if num_sent > 0:
-        print(f"Notes sent: {num_sent}")
-    else:
+    new_files = [
+        file for file in recordings_dir.glob("*.m4a")
+        if file.name not in old_files
+    ]
+    if not new_files:
         print("No new notes")
+        return
+    new_files = sorted(new_files, key=lambda file: file.name)
+    print(f"Sending notes: {len(new_files)}")
+    # Sending asynchronously: send one at a time, convert the rest while sending,
+    # delete converted as soon as it's been sent.
+    # Potentially all converted notes will be stored simultaneously.
+    semaphore = asyncio.BoundedSemaphore()
+    tasks = []
+    async with asyncio.TaskGroup() as taskGroup:
+        for file in new_files:
+            tasks.append(taskGroup.create_task(send_voice_note(bot, chat_id, file, semaphore)))
+    for task, file in zip(tasks, new_files):
+        message = await task
+        state.message_id_to_filename[message.id] = file.name
+    print("Sent")
 
 
 async def run_bot(token: str, config: Config, state: State):
