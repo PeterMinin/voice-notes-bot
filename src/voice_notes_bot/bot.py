@@ -89,13 +89,13 @@ async def process_updates(bot: tg.Bot, config: Config, state: State):
     if not updates:
         print("No updates")
         return
+    print(f"Processing updates: {len(updates)}")
     for i, update in enumerate(updates):
         if await handle_update(update, config, state):
             state.last_update_id = update.update_id
         else:
             print(f"Updates left unprocessed: {len(updates) - i}")
             return
-    print("All updates processed")
 
 
 async def send_voice_note(bot: tg.Bot, chat_id: int, audio_file: Path, semaphore) -> tg.Message:
@@ -133,7 +133,6 @@ async def process_voice_notes(
     for task, file in zip(tasks, new_files):
         message = await task
         state.message_id_to_filename[message.id] = file.name
-    print("Sent")
 
 
 async def run_bot(token: str, config: Config, state: State):
