@@ -112,7 +112,7 @@ async def process_voice_notes(
     bot: tg.Bot, chat_id: int, recordings_dir: Path, state: State
 ):
     old_files = set(state.message_id_to_filename.values())
-    old_files.remove(None)
+    old_files.discard(None)
     new_files = [
         file for file in recordings_dir.glob("*.m4a")
         if file.name not in old_files
