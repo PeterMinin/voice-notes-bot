@@ -28,7 +28,7 @@
 - Get the chat ID:
   - Write a message to the bot
   - Execute `pdm run run_bot`. It will print the ID (and some more info).
-  - Edit `local/config.json`; format the ID as an integer.
+  - Edit `local/config.json`; format the ID as an integer, i.e. without quotes.
 
 - Run the command regularly: `pdm run run_bot`
 
