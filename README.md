@@ -31,3 +31,8 @@
   - Edit `local/config.json`; format the ID as an integer.
 
 - Run the command regularly: `pdm run run_bot`
+
+## Features
+
+- To discard a voice note, react with a "thumbsup" or "ok", then run the bot.
+  You will see another reaction on the message, which means the bot has deleted the source file. It's then safe to delete the message.
