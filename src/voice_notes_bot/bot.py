@@ -14,9 +14,9 @@ from .state import State
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "bot_json",
+        "secrets_json",
         type=Path,
-        help='Path to a secret JSON file with an "api_token" field',
+        help='Path to a JSON file with an "api_token" field',
     )
     parser.add_argument("config_json", type=Path)
     parser.add_argument("state_dir", type=Path)
@@ -146,7 +146,7 @@ async def run_bot(token: str, config: Config, state: State):
 
 def main():
     args = get_args()
-    token = get_api_token(args.bot_json)
+    token = get_api_token(args.secrets_json)
     config = Config.load(args.config_json)
     state = State.load(args.state_dir)
     asyncio.run(run_bot(token, config, state))
