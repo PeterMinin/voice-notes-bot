@@ -68,7 +68,8 @@ async def handle_reaction(
 async def handle_update(update: tg.Update, config: Config, state: State) -> bool:
     if update.message:
         if update.message.chat.id != config.chat_id:
-            print("New chat:", update)
+            print("New chat: ID", update.message.chat.id)
+            print("Raw update:", update)
             return True
         if update.message.text == "/start":
             bot = update.get_bot()
