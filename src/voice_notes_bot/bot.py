@@ -50,7 +50,11 @@ async def handle_reaction(
             f"Info: Ignoring reaction {reaction.new_reaction} for message {message_id}"
         )
         return True
-    source_filename = state.message_id_to_filename[str(message_id)]
+    try:
+        source_filename = state.message_id_to_filename[str(message_id)]
+    except KeyError:  # May happen if multiple instances of the server exist
+        print(f"Warning: Ignoring reaction to message {message_id} that we don't remember sending")
+        return True
     if source_filename is None:
         print(f"Info: Ignoring a repeated Done reaction for message {message_id}")
         return True
