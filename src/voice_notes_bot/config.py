@@ -18,5 +18,5 @@ class Config:
             data = json.load(f)
         return Config(
             chat_id=data.get("chat_id"),
-            recordings_dir=Path(data["recordings_dir"]),
+            recordings_dir=Path(data["recordings_dir"]).expanduser(),
         )
