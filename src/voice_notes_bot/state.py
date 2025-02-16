@@ -24,7 +24,7 @@ class State:
         return State(
             _state_dir=state_dir,
             last_update_id=data.get("last_update_id", 0),
-            message_id_to_filename=data.get("message_id_to_filename", {})
+            message_id_to_filename=data.get("message_id_to_filename", {}),
         )
 
     def save(self) -> None:

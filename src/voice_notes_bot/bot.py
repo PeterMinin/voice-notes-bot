@@ -53,7 +53,9 @@ async def handle_reaction(
     try:
         source_filename = state.message_id_to_filename[str(message_id)]
     except KeyError:  # May happen if multiple instances of the server exist
-        print(f"Warning: Ignoring reaction to message {message_id} that we don't remember sending")
+        print(
+            f"Warning: Ignoring reaction to message {message_id} that we don't remember sending"
+        )
         return True
     if source_filename is None:
         print(f"Info: Ignoring a repeated Done reaction for message {message_id}")
@@ -103,7 +105,9 @@ async def process_updates(bot: tg.Bot, config: Config, state: State):
             return
 
 
-async def send_voice_note(bot: tg.Bot, chat_id: int, audio_file: Path, semaphore) -> tg.Message:
+async def send_voice_note(
+    bot: tg.Bot, chat_id: int, audio_file: Path, semaphore
+) -> tg.Message:
     assert audio_file.is_file()
     with get_as_ogg_opus(audio_file) as ogg_file:
         await semaphore.acquire()
@@ -119,8 +123,7 @@ async def process_voice_notes(
     old_files = set(state.message_id_to_filename.values())
     old_files.discard(None)
     new_files = [
-        file for file in recordings_dir.glob("*.m4a")
-        if file.name not in old_files
+        file for file in recordings_dir.glob("*.m4a") if file.name not in old_files
     ]
     if not new_files:
         print("No new notes")
@@ -134,7 +137,9 @@ async def process_voice_notes(
     tasks = []
     async with asyncio.TaskGroup() as taskGroup:
         for file in new_files:
-            tasks.append(taskGroup.create_task(send_voice_note(bot, chat_id, file, semaphore)))
+            tasks.append(
+                taskGroup.create_task(send_voice_note(bot, chat_id, file, semaphore))
+            )
     for task, file in zip(tasks, new_files):
         message = await task
         state.message_id_to_filename[message.id] = file.name
