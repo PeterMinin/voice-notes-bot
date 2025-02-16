@@ -96,13 +96,16 @@ async def process_updates(bot: tg.Bot, config: Config, state: State):
     if not updates:
         print("No updates")
         return
-    print(f"Processing updates: {len(updates)}")
+    if not config.background:
+        print(f"Processing updates: {len(updates)}")
     for i, update in enumerate(updates):
         if await handle_update(update, config, state):
             state.last_update_id = update.update_id
         else:
-            print(f"Updates left unprocessed: {len(updates) - i}")
+            print(f"Updates left unprocessed: {len(updates) - i} of {len(updates)}")
             return
+    if config.background:
+        print(f"Updates processed: {len(updates)}")
 
 
 async def send_voice_note(
@@ -117,9 +120,12 @@ async def send_voice_note(
             semaphore.release()
 
 
-async def process_voice_notes(
-    bot: tg.Bot, chat_id: int, recordings_dir: Path, state: State
-):
+async def process_voice_notes(bot: tg.Bot, config: Config, state: State):
+    chat_id = config.chat_id
+    recordings_dir = config.recordings_dir
+    background = config.background
+    assert chat_id is not None
+
     old_files = set(state.message_id_to_filename.values())
     old_files.discard(None)
     new_files = [
@@ -129,7 +135,8 @@ async def process_voice_notes(
         print("No new notes")
         return
     new_files = sorted(new_files, key=lambda file: file.name)
-    print(f"Sending notes: {len(new_files)}")
+    if not background:
+        print(f"Sending notes: {len(new_files)}")
     # Sending asynchronously: send one at a time, convert the rest while sending,
     # delete converted as soon as it's been sent.
     # Potentially all converted notes will be stored simultaneously.
@@ -143,6 +150,8 @@ async def process_voice_notes(
     for task, file in zip(tasks, new_files):
         message = await task
         state.message_id_to_filename[message.id] = file.name
+    if background:
+        print(f"Notes sent: {len(new_files)}")
 
 
 async def run_bot(token: str, config: Config, state: State):
@@ -151,7 +160,7 @@ async def run_bot(token: str, config: Config, state: State):
         await process_updates(bot, config, state)
         if config.chat_id is None:
             return
-        await process_voice_notes(bot, config.chat_id, config.recordings_dir, state)
+        await process_voice_notes(bot, config, state)
 
 
 def main():

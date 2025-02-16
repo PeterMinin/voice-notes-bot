@@ -7,6 +7,7 @@ from pathlib import Path
 class Config:
     chat_id: int | None
     recordings_dir: Path
+    background: bool  # Adjust output for automated execution, not interactive
 
     def __post_init__(self):
         if not self.recordings_dir.is_dir():
@@ -19,4 +20,5 @@ class Config:
         return Config(
             chat_id=data.get("chat_id"),
             recordings_dir=Path(data["recordings_dir"]).expanduser(),
+            background=data.get("background", False),
         )
