@@ -111,15 +111,16 @@ async def process_updates(bot: tg.Bot, config: Config, state: State):
 
 
 async def send_voice_note(
-    bot: tg.Bot, chat_id: int, audio_file: Path, semaphore
+    bot: tg.Bot, chat_id: int, audio_file: Path, semaphore: asyncio.Semaphore
 ) -> tg.Message:
     assert audio_file.is_file()
     with get_as_ogg_opus(audio_file) as ogg_file:
         await semaphore.acquire()
-        try:
-            return await bot.send_voice(chat_id, ogg_file, caption=audio_file.stem)
-        finally:
-            semaphore.release()
+        res = await bot.send_voice(chat_id, ogg_file, caption=audio_file.stem)
+        # Only release if successful.
+        # In case of an exception, the whole task group will be cancelled anyway.
+        semaphore.release()
+        return res
 
 
 async def process_voice_notes(bot: tg.Bot, config: Config, state: State):
@@ -175,8 +176,10 @@ async def process_voice_notes(bot: tg.Bot, config: Config, state: State):
             print(f"Notes sent: {num_total}")
         else:
             print(f"Error encountered: {num_failed}")
-            print(f"Sent successfully: {num_successful}")
-            print(f"Cancelled: {num_cancelled}")
+            if num_successful:
+                print(f"Sent successfully: {num_successful}")
+            if num_cancelled:
+                print(f"Cancelled: {num_cancelled}")
 
 
 async def run_bot(token: str, config: Config, state: State):
