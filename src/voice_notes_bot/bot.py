@@ -1,6 +1,8 @@
 import argparse
 import asyncio
 import json
+import traceback
+import sys
 from pathlib import Path
 
 import telegram as tg
@@ -142,16 +144,39 @@ async def process_voice_notes(bot: tg.Bot, config: Config, state: State):
     # Potentially all converted notes will be stored simultaneously.
     semaphore = asyncio.BoundedSemaphore()
     tasks = []
-    async with asyncio.TaskGroup() as taskGroup:
-        for file in new_files:
-            tasks.append(
-                taskGroup.create_task(send_voice_note(bot, chat_id, file, semaphore))
-            )
+    try:
+        async with asyncio.TaskGroup() as task_group:
+            for file in new_files:
+                tasks.append(
+                    task_group.create_task(
+                        send_voice_note(bot, chat_id, file, semaphore)
+                    )
+                )
+    except ExceptionGroup:
+        pass  # We'll handle each exception separately
+    num_total = len(new_files)
+    num_successful = 0
+    num_failed = 0
+    num_cancelled = 0
     for task, file in zip(tasks, new_files):
-        message = await task
+        try:
+            message = await task
+        except tg.error.TelegramError:
+            traceback.print_exc(file=sys.stderr)
+            num_failed += 1
+            continue
+        except asyncio.CancelledError:
+            num_cancelled += 1
+            continue
+        num_successful += 1
         state.message_id_to_filename[message.id] = file.name
-    if background:
-        print(f"Notes sent: {len(new_files)}")
+    if background or num_successful < num_total:
+        if num_successful == num_total:
+            print(f"Notes sent: {num_total}")
+        else:
+            print(f"Error encountered: {num_failed}")
+            print(f"Sent successfully: {num_successful}")
+            print(f"Cancelled: {num_cancelled}")
 
 
 async def run_bot(token: str, config: Config, state: State):
