@@ -83,6 +83,12 @@ async def handle_update(update: tg.Update, config: Config, state: State) -> bool
             bot = update.get_bot()
             await bot.send_message(text="Hi!", chat_id=config.chat_id)
             return True
+        if update.message.voice:
+            # Ignore
+            return True
+        # For other messages, signal that the bot has seen it but doesn't understand it
+        await update.message.set_reaction(ReactionEmoji.EYES)
+        return True
     if update.message_reaction:
         return await handle_reaction(update.message_reaction, config, state)
     print("Unexpected update:", update)
