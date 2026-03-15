@@ -53,23 +53,23 @@ async def handle_reaction(
         )
         return True
     try:
-        source_filename = state.message_id_to_filename[str(message_id)]
+        source_filepath = state.message_id_to_file_path[str(message_id)]
     except KeyError:  # May happen if multiple instances of the server exist
         print(
             f"Warning: Ignoring reaction to message {message_id} that we don't remember sending"
         )
         return True
-    if source_filename is None:
+    if source_filepath is None:
         print(f"Info: Ignoring a repeated Done reaction for message {message_id}")
         return True
-    file = config.recordings_dir / source_filename
+    file = Path(source_filepath)
     if file.is_file():
         file.unlink()
     else:
-        print(f"Info: Note source {source_filename} already deleted")
+        print(f"Info: Note source {source_filepath} already deleted")
     ok = await reaction.chat.set_message_reaction(message_id, ReactionEmoji.HANDSHAKE)
     assert ok
-    state.message_id_to_filename[str(message_id)] = None
+    state.message_id_to_file_path[str(message_id)] = None
     return True
 
 
@@ -131,19 +131,23 @@ async def send_voice_note(
 
 async def process_voice_notes(bot: tg.Bot, config: Config, state: State):
     chat_id = config.chat_id
-    recordings_dir = config.recordings_dir
+    recordings_dirs = config.recordings_dirs
     background = config.background
     assert chat_id is not None
 
-    old_files = set(state.message_id_to_filename.values())
+    old_files = set(state.message_id_to_file_path.values())
     old_files.discard(None)
     new_files = [
-        file for file in recordings_dir.glob("*.m4a") if file.name not in old_files
+        file
+        for recordings_dir in recordings_dirs
+        for file in recordings_dir.glob("*.m4a")
+        if str(file) not in old_files
     ]
     if not new_files:
         print("No new notes")
         return
-    new_files = sorted(new_files, key=lambda file: file.name)
+    timestamps = {file.name: file.stat().st_mtime for file in new_files}
+    new_files = sorted(new_files, key=lambda file: timestamps[file.name])
     if not background:
         print(f"Sending notes: {len(new_files)}")
     # Sending asynchronously: send one at a time, convert the rest while sending,
@@ -176,7 +180,7 @@ async def process_voice_notes(bot: tg.Bot, config: Config, state: State):
             num_cancelled += 1
             continue
         num_successful += 1
-        state.message_id_to_filename[message.id] = file.name
+        state.message_id_to_file_path[message.id] = str(file)
     if background or num_successful < num_total:
         if num_successful == num_total:
             print(f"Notes sent: {num_total}")
@@ -201,7 +205,7 @@ def main():
     args = get_args()
     token = get_api_token(args.secrets_json)
     config = Config.load(args.config_json)
-    state = State.load(args.state_dir)
+    state = State.load(args.state_dir, config)
     asyncio.run(run_bot(token, config, state))
     state.save()
 

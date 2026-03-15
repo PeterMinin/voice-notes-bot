@@ -13,7 +13,10 @@
     ```json
     {
         "chat_id": null,
-        "recordings_dir": "<your_path>"
+        "recordings_dirs": [
+          "<path1>",
+          "<path2>"
+        ]
     }
     ```
 
